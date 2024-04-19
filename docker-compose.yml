@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+    app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        image: laravelapp
+        ports:
+            - "8000:8000"
+        volumes:
+            - .:/var/www
+        env_file:
+            - .env
+        depends_on:
+            - db
+        networks:
+            - laravel
+        command: >
+            /bin/sh -c "
+                ./wait-for-it.sh db:3306 --timeout=60 &&
+                composer install --no-interaction &&
+                php artisan key:generate &&
+                php artisan migrate &&
+                php artisan passport:install --force &&
+                php artisan serve --host=0.0.0.0 --port=8000
+            "
+
+    test:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        volumes:
+            - .:/var/www
+        env_file:
+            - .env.testing
+        profiles:
+            - test
+        command: >
+            /bin/sh -c "
+                composer install &&
+                php artisan app:install
+            "
+
+    db:
+        image: mysql:latest
+        restart: always
+        environment:
+            MYSQL_DATABASE: prex_challenge_db
+            MYSQL_USER: user
+            MYSQL_PASSWORD: secret
+            MYSQL_ROOT_PASSWORD: secret
+        ports:
+            - "3306:3306"
+        volumes:
+            - dbdata:/var/lib/mysql
+        networks:
+            - laravel
+
+networks:
+    laravel:
+
+volumes:
+    dbdata:
